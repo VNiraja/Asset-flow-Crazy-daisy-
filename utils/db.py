@@ -1,8 +1,3 @@
-"""
-Database module for AssetFlow
-Handles SQLite database operations and initialization
-"""
-
 import sqlite3
 import os
 from typing import List, Dict, Tuple, Optional
