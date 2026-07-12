@@ -6,7 +6,7 @@ import datetime
 # Ensure the parent directory is in sys.path to import utils
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from utils import db
+from utils import resource_db as db
 
 st.set_page_config(page_title="Maintenance Management", layout="wide")
 st.title("Maintenance Management")
