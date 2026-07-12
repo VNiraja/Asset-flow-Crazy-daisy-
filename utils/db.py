@@ -43,46 +43,6 @@ class Database:
                     role TEXT NOT NULL
                 )
             ''')
-            
-            # Create assets table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS assets (
-                    asset_id TEXT PRIMARY KEY,
-                    asset_name TEXT NOT NULL,
-                    category TEXT NOT NULL,
-                    purchase_date TEXT NOT NULL,
-                    cost REAL NOT NULL,
-                    status TEXT NOT NULL,
-                    location TEXT NOT NULL
-                )
-            ''')
-            
-            # Create allocations table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS allocations (
-                    allocation_id TEXT PRIMARY KEY,
-                    asset_id TEXT NOT NULL,
-                    employee_name TEXT NOT NULL,
-                    assigned_date TEXT NOT NULL,
-                    returned_date TEXT,
-                    status TEXT NOT NULL,
-                    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
-                )
-            ''')
-            
-            # Create maintenance table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS maintenance (
-                    maintenance_id TEXT PRIMARY KEY,
-                    asset_id TEXT NOT NULL,
-                    maintenance_date TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    cost REAL NOT NULL,
-                    status TEXT NOT NULL,
-                    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
-                )
-            ''')
-            
             conn.commit()
             conn.close()
         except sqlite3.Error as e:
