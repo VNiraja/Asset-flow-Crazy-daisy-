@@ -270,6 +270,37 @@ else:
             st.success("🗑 Asset deleted successfully.")
             st.rerun()
 
+# ── Export Asset Report ───────────────────────────────────────────────────────
+st.divider()
+st.subheader("📤 Export Asset Report")
+
+if all_assets:
+    # Reuse already-fetched all_assets — no extra DB query
+    export_df = pd.DataFrame(all_assets)
+    export_df.columns = ["Asset ID", "Asset Name", "Category", "Purchase Date",
+                         "Purchase Cost", "Location", "Status"]
+
+    csv_data = export_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="⬇ Download Asset Report (CSV)",
+        data=csv_data,
+        file_name="asset_report.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+    st.info("📋 Export the latest asset inventory for reporting or backup.")
+else:
+    st.download_button(
+        label="⬇ Download Asset Report (CSV)",
+        data=b"",
+        file_name="asset_report.csv",
+        mime="text/csv",
+        disabled=True,
+        use_container_width=True,
+    )
+    st.warning("No asset records available for export.")
+
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown(
     '<div class="page-footer">AssetFlow — Enterprise Asset Management System</div>',
