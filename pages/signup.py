@@ -10,14 +10,7 @@ from utils.validators import validate_full_name, validate_email, validate_passwo
 
 def show_signup_page():
     """Display signup page"""
-    
-    # Set page configuration
-    st.set_page_config(
-        page_title="AssetFlow - Sign Up",
-        page_icon="📝",
-        layout="centered"
-    )
-    
+
     # Custom CSS for styling
     st.markdown("""
         <style>
