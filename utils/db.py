@@ -340,11 +340,49 @@ class Database:
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     user_id TEXT PRIMARY KEY,
-                    full_name TEXT NOT NULL,
+                    name TEXT NOT NULL,
                     email TEXT UNIQUE NOT NULL,
                     password TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    created_at TEXT NOT NULL
+                    role TEXT NOT NULL
+                )
+            ''')
+            
+            # Create assets table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS assets (
+                    asset_id TEXT PRIMARY KEY,
+                    asset_name TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    purchase_date TEXT NOT NULL,
+                    cost REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    location TEXT NOT NULL
+                )
+            ''')
+            
+            # Create allocations table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS allocations (
+                    allocation_id TEXT PRIMARY KEY,
+                    asset_id TEXT NOT NULL,
+                    employee_name TEXT NOT NULL,
+                    assigned_date TEXT NOT NULL,
+                    returned_date TEXT,
+                    status TEXT NOT NULL,
+                    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+                )
+            ''')
+            
+            # Create maintenance table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS maintenance (
+                    maintenance_id TEXT PRIMARY KEY,
+                    asset_id TEXT NOT NULL,
+                    maintenance_date TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    cost REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
                 )
             ''')
             
@@ -377,19 +415,17 @@ class Database:
             print(f"Database error: {e}")
             return False
     
-    def create_user(self, user_id: str, full_name: str, email: str, 
-                   password_hash: str, role: str = "employee", 
-                   created_at: str = None) -> Tuple[bool, str]:
+    def create_user(self, user_id: str, name: str, email: str, 
+                   password_hash: str, role: str = "employee") -> Tuple[bool, str]:
         """
         Create a new user.
         
         Args:
             user_id: Unique user identifier
-            full_name: User's full name
+            name: User's name
             email: User's email address
             password_hash: Hashed password
             role: User role (employee or admin)
-            created_at: Account creation timestamp
             
         Returns:
             Tuple of (success, message)
@@ -406,9 +442,9 @@ class Database:
             
             # Insert new user
             cursor.execute('''
-                INSERT INTO users (user_id, full_name, email, password, role, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (user_id, full_name, email, password_hash, role, created_at))
+                INSERT INTO users (user_id, name, email, password, role)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, name, email, password_hash, role))
             
             conn.commit()
             conn.close()
@@ -434,7 +470,7 @@ class Database:
             cursor = conn.cursor()
             
             cursor.execute('''
-                SELECT user_id, full_name, email, password, role, created_at 
+                SELECT user_id, name as full_name, email, password, role 
                 FROM users WHERE email = ?
             ''', (email,))
             
@@ -463,7 +499,7 @@ class Database:
             cursor = conn.cursor()
             
             cursor.execute('''
-                SELECT user_id, full_name, email, password, role, created_at 
+                SELECT user_id, name as full_name, email, password, role 
                 FROM users WHERE user_id = ?
             ''', (user_id,))
             
@@ -489,8 +525,8 @@ class Database:
             cursor = conn.cursor()
             
             cursor.execute('''
-                SELECT user_id, full_name, email, role, created_at 
-                FROM users ORDER BY created_at DESC
+                SELECT user_id, name as full_name, email, role 
+                FROM users
             ''')
             
             results = cursor.fetchall()
