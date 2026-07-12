@@ -1,3 +1,9 @@
+# Entry point for the AssetFlow Streamlit app
+"""
+AssetFlow - Authentication Module
+Main application entry point
+"""
+
 import streamlit as st
 from pages.login import show_login_page
 from pages.signup import show_signup_page
