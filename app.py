@@ -1,3 +1,4 @@
+# Entry point for the AssetFlow Streamlit app
 """
 AssetFlow - Authentication Module
 Main application entry point
