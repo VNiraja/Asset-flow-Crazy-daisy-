@@ -10,14 +10,7 @@ from datetime import datetime
 
 def show_login_page():
     """Display login page"""
-    
-    # Set page configuration
-    st.set_page_config(
-        page_title="AssetFlow - Login",
-        page_icon="🔐",
-        layout="centered"
-    )
-    
+
     # Custom CSS for styling
     st.markdown("""
         <style>

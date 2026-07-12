@@ -10,13 +10,7 @@ from utils.db import db
 
 def show_admin_page():
     """Display admin page"""
-    
-    st.set_page_config(
-        page_title="AssetFlow - Admin Panel",
-        page_icon="⚙️",
-        layout="wide"
-    )
-    
+
     # Check if user is logged in and has admin role
     if not st.session_state.get("logged_in", False):
         st.error("❌ You are not authorized to access this page")
