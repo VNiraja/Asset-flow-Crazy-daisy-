@@ -46,7 +46,6 @@ def show_dashboard():
             st.plotly_chart(create_category_bar_chart(assets_df), use_container_width=True)
 
         if not maint_df.empty:
-            maint_df['last_maintenance_date'] = maint_df['maintenance_date']
             st.plotly_chart(create_monthly_maintenance_cost_chart(maint_df), use_container_width=True)
     else:
         st.info("Add some assets to view analytics.")

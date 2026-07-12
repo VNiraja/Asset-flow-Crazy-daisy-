@@ -69,15 +69,13 @@ def show_admin_page():
                 
                 # Format the dataframe
                 df_display = df.copy()
-                df_display['created_at'] = pd.to_datetime(df_display['created_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
                 
                 # Rename columns for better display
                 df_display = df_display.rename(columns={
                     'user_id': 'User ID',
                     'full_name': 'Full Name',
                     'email': 'Email',
-                    'role': 'Role',
-                    'created_at': 'Created At'
+                    'role': 'Role'
                 })
                 
                 # Display dataframe
@@ -147,18 +145,16 @@ def show_admin_page():
                 # Recent registrations
                 st.write("### Recent Registrations (Last 5)")
                 
-                recent_users = sorted(users, key=lambda x: x['created_at'], reverse=True)[:5]
+                recent_users = users[:5]
                 
                 if recent_users:
                     recent_df = pd.DataFrame(recent_users)
-                    recent_df['created_at'] = pd.to_datetime(recent_df['created_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
                     
-                    recent_df_display = recent_df[['full_name', 'email', 'role', 'created_at']]
+                    recent_df_display = recent_df[['full_name', 'email', 'role']]
                     recent_df_display = recent_df_display.rename(columns={
                         'full_name': 'Full Name',
                         'email': 'Email',
-                        'role': 'Role',
-                        'created_at': 'Created At'
+                        'role': 'Role'
                     })
                     
                     st.dataframe(recent_df_display, use_container_width=True, hide_index=True)
@@ -199,7 +195,6 @@ def show_admin_page():
                         st.write(f"**Email:** {user['email']}")
                         st.write(f"**Current Role:** {user['role'].upper()}")
                         st.write(f"**User ID:** {user['user_id']}")
-                        st.write(f"**Created:** {user['created_at']}")
                     
                     with col2:
                         st.write("### Management Actions")

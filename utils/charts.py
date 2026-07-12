@@ -38,15 +38,15 @@ def create_category_bar_chart(df: pd.DataFrame) -> go.Figure:
 
 def create_monthly_maintenance_cost_chart(df: pd.DataFrame) -> go.Figure:
     """Monthly maintenance cost chart."""
-    df_maint = df.dropna(subset=['last_maintenance_date', 'maintenance_cost']).copy()
-    df_maint['Month'] = pd.to_datetime(df_maint['last_maintenance_date']).dt.to_period('M').astype(str)
+    df_maint = df.dropna(subset=['maintenance_date', 'cost']).copy()
+    df_maint['Month'] = pd.to_datetime(df_maint['maintenance_date']).dt.to_period('M').astype(str)
     
-    monthly_costs = df_maint.groupby('Month')['maintenance_cost'].sum().reset_index()
+    monthly_costs = df_maint.groupby('Month')['cost'].sum().reset_index()
     
     fig = px.line(
         monthly_costs, 
         x='Month', 
-        y='maintenance_cost', 
+        y='cost', 
         title='Monthly Maintenance Cost',
         markers=True, 
         template='plotly_white'

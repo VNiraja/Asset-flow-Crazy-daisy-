@@ -82,6 +82,13 @@ def show_signup_page():
             key="signup_confirm_password"
         )
         
+        role = st.selectbox(
+            label="Account Role",
+            options=["employee", "admin"],
+            format_func=lambda x: x.capitalize(),
+            key="signup_role"
+        )
+        
         # Password requirements
         with st.expander("📋 Password Requirements"):
             st.markdown("""
@@ -127,7 +134,7 @@ def show_signup_page():
                     st.error(f"❌ {error}")
             else:
                 # Attempt signup
-                success, message = auth_manager.signup(full_name, email, password)
+                success, message = auth_manager.signup(full_name, email, password, role)
                 
                 if success:
                     st.success("✅ Account created successfully! Logging you in...")

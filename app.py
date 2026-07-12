@@ -43,6 +43,11 @@ def show_navbar():
                 st.session_state.page = "reports"
                 st.rerun()
             
+            if st.session_state.role == "admin":
+                if st.button("⚙️ Admin Panel", use_container_width=True):
+                    st.session_state.page = "admin"
+                    st.rerun()
+            
             st.markdown("---")
             if st.button("🚪 Logout", use_container_width=True):
                 st.session_state.logged_in = False
@@ -78,6 +83,9 @@ def main():
         elif st.session_state.page == "reports":
             from pages.reports import show_reports
             show_reports()
+        elif st.session_state.page == "admin":
+            from pages.admin import show_admin_page
+            show_admin_page()
         else:
             from pages.dashboard import show_dashboard
             show_dashboard()

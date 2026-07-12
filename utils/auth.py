@@ -68,7 +68,7 @@ class AuthManager:
         return datetime.now().isoformat()
     
     @staticmethod
-    def signup(full_name: str, email: str, password: str) -> Tuple[bool, str]:
+    def signup(full_name: str, email: str, password: str, role: str = "employee") -> Tuple[bool, str]:
         """
         Register a new user.
         
@@ -76,6 +76,7 @@ class AuthManager:
             full_name: User's full name
             email: User's email address
             password: User's password
+            role: The user's role (admin or employee)
             
         Returns:
             Tuple of (success, message)
@@ -102,7 +103,7 @@ class AuthManager:
                 name=full_name,
                 email=email,
                 password_hash=password_hash,
-                role="employee"  # Default role
+                role=role
             )
             
             return success, message
