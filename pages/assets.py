@@ -5,7 +5,7 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from utils.db import create_table, add_asset, get_all_assets, search_assets, get_asset_by_id, update_asset, delete_asset
+from utils.db import create_table, add_asset, get_all_assets, search_assets, get_asset_by_id, update_asset, delete_asset, compute_asset_risk
 
 # Initialise DB on every page load (no-op if table already exists)
 create_table()
@@ -300,6 +300,115 @@ else:
         use_container_width=True,
     )
     st.warning("No asset records available for export.")
+
+# ── Asset Lifecycle Intelligence ─────────────────────────────────────────────
+st.divider()
+st.subheader("🧠 Asset Lifecycle Intelligence")
+st.caption(
+    "Risk scores are calculated from asset age, operational status, and data completeness. "
+    "This is a decision-support tool, not a predictive model."
+)
+
+if not all_assets:
+    st.info("No assets available to analyse. Add assets first.")
+else:
+    # Compute risk profile for every asset — reuses all_assets, zero extra DB queries
+    risk_profiles = [compute_asset_risk(a) for a in all_assets]
+
+    low_risk    = sum(1 for r in risk_profiles if r["risk_level"] == "Low Risk")
+    medium_risk = sum(1 for r in risk_profiles if r["risk_level"] == "Medium Risk")
+    high_risk   = sum(1 for r in risk_profiles if r["risk_level"] == "High Risk")
+    avg_score   = round(sum(r["score"] for r in risk_profiles) / len(risk_profiles))
+
+    # ── Fleet-level risk bar ──────────────────────────────────────────────────
+    st.markdown("**Overall Fleet Risk Score**")
+    bar_color = "normal" if avg_score < 40 else ("off" if avg_score < 70 else "inverse")
+    st.progress(
+        avg_score / 100,
+        text=f"Fleet Average Risk Score: {avg_score} / 100",
+    )
+
+    # ── Risk summary cards ────────────────────────────────────────────────────
+    rc1, rc2, rc3 = st.columns(3)
+    rc1.markdown(f"""
+    <div class="metric-card card-available">
+        <p class="metric-value">{low_risk}</p>
+        <p class="metric-label">🟢 Low Risk</p>
+    </div>""", unsafe_allow_html=True)
+
+    rc2.markdown(f"""
+    <div class="metric-card card-assigned">
+        <p class="metric-value">{medium_risk}</p>
+        <p class="metric-label">🟡 Medium Risk</p>
+    </div>""", unsafe_allow_html=True)
+
+    rc3.markdown(f"""
+    <div class="metric-card card-maintenance">
+        <p class="metric-value">{high_risk}</p>
+        <p class="metric-label">🔴 High Risk</p>
+    </div>""", unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Per-asset risk table ──────────────────────────────────────────────────
+    st.markdown("**Asset Risk Breakdown**")
+
+    risk_rows = []
+    for asset, profile in zip(all_assets, risk_profiles):
+        risk_rows.append({
+            "Asset Name":       asset["asset_name"],
+            "Category":         asset["category"],
+            "Status":           asset["status"],
+            "Age (yrs)":        profile["age_years"],
+            "Lifecycle Stage":  profile["lifecycle_stage"],
+            "Risk Score":       profile["score"],
+            "Risk Level":       profile["risk_level"],
+        })
+
+    risk_df = pd.DataFrame(risk_rows)
+    st.data_editor(
+        risk_df,
+        use_container_width=True,
+        hide_index=True,
+        disabled=True,
+        column_config={
+            "Asset Name":      st.column_config.TextColumn("Asset Name",     width="medium"),
+            "Category":        st.column_config.TextColumn("Category",       width="small"),
+            "Status":          st.column_config.TextColumn("Status",         width="small"),
+            "Age (yrs)":       st.column_config.NumberColumn("Age (yrs)",    width="small", format="%.1f"),
+            "Lifecycle Stage": st.column_config.TextColumn("Lifecycle Stage",width="small"),
+            "Risk Score":      st.column_config.ProgressColumn(
+                                   "Risk Score", min_value=0, max_value=100, format="%d"
+                               ),
+            "Risk Level":      st.column_config.TextColumn("Risk Level",     width="small"),
+        },
+    )
+
+    st.divider()
+
+    # ── Recommendations panel (Medium + High Risk only) ───────────────────────
+    st.markdown("**📋 Recommendations**")
+
+    flagged = [
+        (asset, profile)
+        for asset, profile in zip(all_assets, risk_profiles)
+        if profile["risk_level"] != "Low Risk"
+    ]
+
+    if not flagged:
+        st.success("✅ All assets are currently Low Risk. No action required.")
+    else:
+        for asset, profile in flagged:
+            if profile["risk_level"] == "High Risk":
+                st.error(
+                    f"🔴 **{asset['asset_name']}** — {profile['risk_level']} "
+                    f"(Score: {profile['score']})\n\n{profile['recommendation']}"
+                )
+            else:
+                st.warning(
+                    f"🟡 **{asset['asset_name']}** — {profile['risk_level']} "
+                    f"(Score: {profile['score']})\n\n{profile['recommendation']}"
+                )
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown(
