@@ -1,211 +1,308 @@
 import sqlite3
 import os
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "database", "assetflow.db")
-
-
-def _get_connection():
-    """Return a connection to the SQLite database."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+from typing import List, Dict, Tuple, Optional
 
 
-def create_table():
-    """Create the Assets table if it does not already exist."""
-    with _get_connection() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS Assets (
-                asset_id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                asset_name    TEXT    NOT NULL,
-                category      TEXT    NOT NULL,
-                purchase_date TEXT,
-                purchase_cost REAL,
-                location      TEXT,
-                status        TEXT
-            )
-        """)
+class Database:
+    """Database handler for AssetFlow"""
+    
+    def __init__(self, db_path: str = "assetflow.db"):
+        """
+        Initialize database connection.
+        
+        Args:
+            db_path: Path to the SQLite database file
+        """
+        self.db_path = db_path
+        self.init_db()
+    
+    def get_connection(self) -> sqlite3.Connection:
+        """
+        Get database connection.
+        
+        Returns:
+            SQLite connection object
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+    
+    def init_db(self):
+        """Initialize database and create tables if they don't exist"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Create users table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    role TEXT NOT NULL
+                )
+            ''')
+            
+            # Create assets table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS assets (
+                    asset_id TEXT PRIMARY KEY,
+                    asset_name TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    purchase_date TEXT NOT NULL,
+                    cost REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    location TEXT NOT NULL
+                )
+            ''')
+            
+            # Create allocations table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS allocations (
+                    allocation_id TEXT PRIMARY KEY,
+                    asset_id TEXT NOT NULL,
+                    employee_name TEXT NOT NULL,
+                    assigned_date TEXT NOT NULL,
+                    returned_date TEXT,
+                    status TEXT NOT NULL,
+                    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+                )
+            ''')
+            
+            # Create maintenance table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS maintenance (
+                    maintenance_id TEXT PRIMARY KEY,
+                    asset_id TEXT NOT NULL,
+                    maintenance_date TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    cost REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+                )
+            ''')
+            
+            conn.commit()
+            conn.close()
+        except sqlite3.Error as e:
+            print(f"Database initialization error: {e}")
+            raise
+    
+    def user_exists_by_email(self, email: str) -> bool:
+        """
+        Check if user exists by email.
+        
+        Args:
+            email: User's email address
+            
+        Returns:
+            True if user exists, False otherwise
+        """
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT user_id FROM users WHERE email = ?', (email,))
+            result = cursor.fetchone()
+            conn.close()
+            
+            return result is not None
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            return False
+    
+    def create_user(self, user_id: str, name: str, email: str, 
+                   password_hash: str, role: str = "employee") -> Tuple[bool, str]:
+        """
+        Create a new user.
+        
+        Args:
+            user_id: Unique user identifier
+            name: User's name
+            email: User's email address
+            password_hash: Hashed password
+            role: User role (employee or admin)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if email already exists
+            cursor.execute('SELECT user_id FROM users WHERE email = ?', (email,))
+            if cursor.fetchone():
+                conn.close()
+                return False, "Email already registered"
+            
+            # Insert new user
+            cursor.execute('''
+                INSERT INTO users (user_id, name, email, password, role)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, name, email, password_hash, role))
+            
+            conn.commit()
+            conn.close()
+            
+            return True, "User created successfully"
+        except sqlite3.IntegrityError:
+            return False, "Email already registered"
+        except sqlite3.Error as e:
+            return False, f"Database error: {e}"
+    
+    def get_user_by_email(self, email: str) -> Optional[Dict]:
+        """
+        Get user by email.
+        
+        Args:
+            email: User's email address
+            
+        Returns:
+            User data dictionary or None
+        """
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT user_id, name as full_name, email, password, role 
+                FROM users WHERE email = ?
+            ''', (email,))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                return dict(result)
+            return None
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            return None
+    
+    def get_user_by_id(self, user_id: str) -> Optional[Dict]:
+        """
+        Get user by user ID.
+        
+        Args:
+            user_id: User's unique identifier
+            
+        Returns:
+            User data dictionary or None
+        """
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT user_id, name as full_name, email, password, role 
+                FROM users WHERE user_id = ?
+            ''', (user_id,))
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                return dict(result)
+            return None
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            return None
+    
+    def get_all_users(self) -> List[Dict]:
+        """
+        Get all users.
+        
+        Returns:
+            List of user data dictionaries
+        """
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT user_id, name as full_name, email, role 
+                FROM users
+            ''')
+            
+            results = cursor.fetchall()
+            conn.close()
+            
+            return [dict(row) for row in results]
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            return []
+    
+    def get_user_count(self) -> int:
+        """
+        Get total number of users.
+        
+        Returns:
+            Number of users
+        """
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT COUNT(*) as count FROM users')
+            result = cursor.fetchone()
+            conn.close()
+            
+            return result['count'] if result else 0
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            return 0
+    
+    def delete_user(self, user_id: str) -> Tuple[bool, str]:
+        """
+        Delete a user (admin only function).
+        
+        Args:
+            user_id: User's unique identifier
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+            conn.commit()
+            conn.close()
+            
+            return True, "User deleted successfully"
+        except sqlite3.Error as e:
+            return False, f"Database error: {e}"
+    
+    def update_user_role(self, user_id: str, new_role: str) -> Tuple[bool, str]:
+        """
+        Update user role (admin only function).
+        
+        Args:
+            user_id: User's unique identifier
+            new_role: New role (admin or employee)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        try:
+            if new_role not in ['admin', 'employee']:
+                return False, "Invalid role. Must be 'admin' or 'employee'"
+            
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('UPDATE users SET role = ? WHERE user_id = ?', 
+                         (new_role, user_id))
+            conn.commit()
+            conn.close()
+            
+            return True, "Role updated successfully"
+        except sqlite3.Error as e:
+            return False, f"Database error: {e}"
 
 
-def add_asset(asset_name, category, purchase_date, purchase_cost, location, status):
-    """Insert a new asset record and return the new asset_id."""
-    with _get_connection() as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO Assets (asset_name, category, purchase_date, purchase_cost, location, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (asset_name, category, purchase_date, purchase_cost, location, status),
-        )
-        return cursor.lastrowid
-
-
-def get_all_assets():
-    """Return all asset records as a list of dicts."""
-    with _get_connection() as conn:
-        rows = conn.execute("SELECT * FROM Assets ORDER BY asset_id DESC").fetchall()
-    return [dict(row) for row in rows]
-
-
-def search_assets(name: str = "", category: str = "All", status: str = "All"):
-    """Return filtered assets based on name substring, category, and status."""
-    query  = "SELECT * FROM Assets WHERE asset_name LIKE ?"
-    params = [f"%{name}%"]
-
-    if category != "All":
-        query += " AND category = ?"
-        params.append(category)
-
-    if status != "All":
-        query += " AND status = ?"
-        params.append(status)
-
-    query += " ORDER BY asset_id DESC"
-
-    with _get_connection() as conn:
-        rows = conn.execute(query, params).fetchall()
-    return [dict(row) for row in rows]
-
-
-def get_asset_by_id(asset_id: int):
-    """Return a single asset record as a dict, or None if not found."""
-    with _get_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM Assets WHERE asset_id = ?", (asset_id,)
-        ).fetchone()
-    return dict(row) if row else None
-
-
-def update_asset(asset_id, asset_name, category, purchase_date, purchase_cost, location, status):
-    """Update all fields of an existing asset by asset_id."""
-    with _get_connection() as conn:
-        conn.execute(
-            """
-            UPDATE Assets
-               SET asset_name    = ?,
-                   category      = ?,
-                   purchase_date = ?,
-                   purchase_cost = ?,
-                   location      = ?,
-                   status        = ?
-             WHERE asset_id = ?
-            """,
-            (asset_name, category, purchase_date, purchase_cost, location, status, asset_id),
-        )
-
-
-def delete_asset(asset_id: int):
-    """Permanently delete an asset record by asset_id."""
-    with _get_connection() as conn:
-        conn.execute("DELETE FROM Assets WHERE asset_id = ?", (asset_id,))
-
-
-def compute_asset_risk(asset: dict) -> dict:
-    """
-    Compute an Asset Risk Score (0-100) for a single asset dict.
-
-    Score is derived from three independent components:
-      - Age score      (0-40 pts)  based on years since purchase_date
-      - Status score   (0-40 pts)  based on current operational status
-      - Data score     (0-20 pts)  based on completeness of key fields
-
-    A HIGHER score means HIGHER risk.
-    Classification: Low Risk (0-39) | Medium Risk (40-69) | High Risk (70-100)
-
-    No database queries are made — works entirely on the dict passed in.
-    """
-    import datetime
-
-    # ── Age component (higher age = higher risk) ──────────────────────────────
-    age_years = 0
-    try:
-        purchase = datetime.date.fromisoformat(asset["purchase_date"])
-        age_years = (datetime.date.today() - purchase).days / 365.25
-    except (TypeError, ValueError):
-        age_years = 0  # unknown date treated as new
-
-    if age_years < 2:
-        age_score = 0       # new asset, no age risk
-    elif age_years < 4:
-        age_score = 15      # moderate age
-    elif age_years < 6:
-        age_score = 28      # aging
-    else:
-        age_score = 40      # old asset, maximum age risk
-
-    # ── Status component ──────────────────────────────────────────────────────
-    status_map = {
-        "Available":   0,   # operational, no risk
-        "Assigned":    15,  # in use, minor risk
-        "Maintenance": 40,  # under repair, maximum status risk
-    }
-    status_score = status_map.get(asset.get("status", ""), 20)
-
-    # ── Data completeness component (missing data = higher uncertainty = risk) ─
-    incomplete_fields = sum([
-        not asset.get("purchase_date"),
-        not asset.get("purchase_cost"),
-        not asset.get("location"),
-    ])
-    data_score = incomplete_fields * 7   # max 21, capped at 20
-    data_score = min(data_score, 20)
-
-    # ── Final score ───────────────────────────────────────────────────────────
-    score = min(age_score + status_score + data_score, 100)
-
-    # ── Classification ────────────────────────────────────────────────────────
-    if score < 40:
-        risk_level = "Low Risk"
-    elif score < 70:
-        risk_level = "Medium Risk"
-    else:
-        risk_level = "High Risk"
-
-    # ── Lifecycle stage label ─────────────────────────────────────────────────
-    if age_years < 2:
-        lifecycle_stage = "New"
-    elif age_years < 4:
-        lifecycle_stage = "Active"
-    elif age_years < 6:
-        lifecycle_stage = "Aging"
-    else:
-        lifecycle_stage = "End of Life"
-
-    # ── Recommendation ────────────────────────────────────────────────────────
-    status = asset.get("status", "")
-    name   = asset.get("asset_name", "This asset")
-    age_label = f"{age_years:.1f} years" if age_years > 0 else "unknown age"
-
-    if status == "Maintenance":
-        recommendation = (
-            f"{name} is currently under maintenance. "
-            "Review repair status and estimate return-to-service date."
-        )
-    elif lifecycle_stage == "End of Life":
-        recommendation = (
-            f"{name} has been active for {age_label}. "
-            "Consider replacement or formal decommission review."
-        )
-    elif lifecycle_stage == "Aging":
-        recommendation = (
-            f"{name} is aging ({age_label}). "
-            "Schedule a maintenance review to assess condition."
-        )
-    elif lifecycle_stage == "Active" and status == "Assigned":
-        recommendation = (
-            f"{name} is in active use ({age_label}). "
-            "Monitor utilisation and plan next service cycle."
-        )
-    else:
-        recommendation = (
-            f"{name} is relatively new and available. "
-            "Continue normal usage."
-        )
-
-    return {
-        "score":           score,
-        "risk_level":      risk_level,
-        "lifecycle_stage": lifecycle_stage,
-        "age_years":       round(age_years, 1),
-        "recommendation":  recommendation,
-    }
+# Initialize database on module import
+db = Database()
