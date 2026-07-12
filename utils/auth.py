@@ -90,9 +90,8 @@ class AuthManager:
             return False, "Email already registered"
         
         try:
-            # Generate user ID and timestamp
+            # Generate user ID
             user_id = AuthManager.generate_user_id()
-            created_at = AuthManager.get_current_timestamp()
             
             # Hash password
             password_hash = AuthManager.hash_password(password)
@@ -100,11 +99,10 @@ class AuthManager:
             # Create user in database
             success, message = db.create_user(
                 user_id=user_id,
-                full_name=full_name,
+                name=full_name,
                 email=email,
                 password_hash=password_hash,
-                role="employee",  # Default role
-                created_at=created_at
+                role="employee"  # Default role
             )
             
             return success, message
@@ -144,8 +142,7 @@ class AuthManager:
                 'user_id': user['user_id'],
                 'username': user['full_name'],
                 'email': user['email'],
-                'role': user['role'],
-                'created_at': user['created_at']
+                'role': user['role']
             }
             
             return True, "Login successful", user_session_data

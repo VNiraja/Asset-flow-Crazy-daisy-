@@ -1,152 +1,52 @@
-"""
-Dashboard page for AssetFlow
-Shows user information and welcome message
-"""
-
 import streamlit as st
-from datetime import datetime
-
+import pandas as pd
+from utils.db import db
+from utils.charts import create_status_pie_chart, create_category_bar_chart, create_monthly_maintenance_cost_chart
 
 def show_dashboard():
-    """Display dashboard page"""
+    st.title("📊 Asset Management Dashboard")
     
-    st.set_page_config(
-        page_title="AssetFlow - Dashboard",
-        page_icon="📊",
-        layout="wide"
-    )
-    
-    # Check if user is logged in
-    if not st.session_state.get("logged_in", False):
-        st.error("❌ You are not authorized to access this page")
-        st.info("Please login first")
-        st.stop()
-    
-    # Custom CSS
-    st.markdown("""
-        <style>
-            .welcome-header {
-                text-align: center;
-                color: #1f77b4;
-                margin-bottom: 2rem;
-            }
-            .info-card {
-                background-color: #f0f2f6;
-                padding: 1.5rem;
-                border-radius: 0.5rem;
-                margin: 1rem 0;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # Header
-    st.markdown('<div class="welcome-header">', unsafe_allow_html=True)
-    st.title(f"👋 Welcome, {st.session_state.username}!")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # User Information Section
-    st.subheader("📋 Your Account Information")
-    
-    col1, col2 = st.columns(2)
-    
+    try:
+        conn = db.get_connection()
+        assets_df = pd.read_sql("SELECT * FROM assets", conn)
+        maint_df = pd.read_sql("SELECT * FROM maintenance", conn)
+        conn.close()
+    except Exception as e:
+        st.error(f"Database error: {e}")
+        return
+
+    # KPI cards
+    st.subheader("Key Performance Indicators")
+    col1, col2, col3, col4 = st.columns(4)
+
+    total_assets = len(assets_df)
+    available_assets = len(assets_df[assets_df['status'] == 'Available']) if not assets_df.empty else 0
+    assigned_assets = len(assets_df[assets_df['status'] == 'Assigned']) if not assets_df.empty else 0
+    under_maintenance = len(assets_df[assets_df['status'] == 'Under Maintenance']) if not assets_df.empty else 0
+
     with col1:
-        st.markdown("### Account Details")
-        st.info(f"""
-        **Full Name:** {st.session_state.username}
-        
-        **Email:** {st.session_state.email}
-        """)
-    
+        st.metric("Total Assets", total_assets)
     with col2:
-        st.markdown("### Access Information")
-        
-        # Determine role badge
-        role = st.session_state.get("role", "employee").upper()
-        if role == "ADMIN":
-            role_badge = "🔐 ADMIN"
-            role_color = "#FF6B6B"
-        else:
-            role_badge = "👤 EMPLOYEE"
-            role_color = "#4ECDC4"
-        
-        st.markdown(f"""
-        **Role:** <span style='color: {role_color}; font-weight: bold;'>{role_badge}</span>
-        
-        **Login Time:** {st.session_state.login_time}
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Quick Stats
-    st.subheader("📊 Quick Stats")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(
-            label="User ID",
-            value=st.session_state.user_id[:8] + "..."
-        )
-    
-    with col2:
-        st.metric(
-            label="Account Status",
-            value="Active"
-        )
-    
+        st.metric("Available Assets", available_assets)
     with col3:
-        st.metric(
-            label="Role Level",
-            value=st.session_state.get("role", "employee").capitalize()
-        )
-    
-    st.markdown("---")
-    
-    # Available Features
-    st.subheader("🎯 Available Features")
-    
-    features = []
-    
-    # All users can access dashboard
-    features.append("✅ **Dashboard** - View your account information")
-    
-    # Admin-specific features
-    if st.session_state.get("role") == "admin":
-        features.append("✅ **Admin Panel** - Manage all users")
-    
-    for feature in features:
-        st.write(feature)
-    
-    st.markdown("---")
-    
-    # Session Info
-    with st.expander("ℹ️ Session Information"):
-        st.write(f"**Session User ID:** {st.session_state.user_id}")
-        st.write(f"**Session Created:** {st.session_state.login_time}")
-        st.write(f"**Current Time:** {datetime.now().isoformat()}")
-        st.write(f"**Session Status:** Active ✓")
-    
-    st.markdown("---")
-    
-    # Logout button
-    st.markdown("### 🔓 Session Management")
-    
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        if st.button("🚪 Logout", use_container_width=True, key="logout_btn"):
-            # Clear session
-            st.session_state.logged_in = False
-            st.session_state.user_id = None
-            st.session_state.username = None
-            st.session_state.role = None
-            st.session_state.email = None
-            st.session_state.login_time = None
-            
-            st.success("✅ Logged out successfully")
-            st.rerun()
+        st.metric("Assigned Assets", assigned_assets)
+    with col4:
+        st.metric("Under Maintenance", under_maintenance)
 
+    st.markdown("---")
 
-if __name__ == "__main__":
-    show_dashboard()
+    if not assets_df.empty:
+        st.subheader("Analytics Overview")
+        chart_col1, chart_col2 = st.columns(2)
+
+        with chart_col1:
+            st.plotly_chart(create_status_pie_chart(assets_df), use_container_width=True)
+
+        with chart_col2:
+            st.plotly_chart(create_category_bar_chart(assets_df), use_container_width=True)
+
+        if not maint_df.empty:
+            maint_df['last_maintenance_date'] = maint_df['maintenance_date']
+            st.plotly_chart(create_monthly_maintenance_cost_chart(maint_df), use_container_width=True)
+    else:
+        st.info("Add some assets to view analytics.")

@@ -130,13 +130,25 @@ def show_signup_page():
                 success, message = auth_manager.signup(full_name, email, password)
                 
                 if success:
-                    st.success("✅ Account created successfully! Please login with your credentials.")
+                    st.success("✅ Account created successfully! Logging you in...")
                     st.balloons()
                     
-                    # Add delay and redirect
+                    # Auto-login and redirect
                     import time
-                    time.sleep(2)
-                    st.session_state.page = "login"
+                    time.sleep(1)
+                    
+                    # Log the user in
+                    login_success, msg, user_data = auth_manager.login(email, password)
+                    if login_success and user_data:
+                        st.session_state.logged_in = True
+                        st.session_state.user_id = user_data.get('user_id')
+                        st.session_state.username = user_data.get('full_name') or user_data.get('name')
+                        st.session_state.role = user_data.get('role')
+                        st.session_state.email = user_data.get('email')
+                        st.session_state.page = "dashboard"
+                    else:
+                        st.session_state.page = "login"
+                        
                     st.rerun()
                 else:
                     st.error(f"❌ {message}")
