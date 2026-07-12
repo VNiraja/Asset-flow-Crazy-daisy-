@@ -45,3 +45,56 @@ def get_all_assets():
     with _get_connection() as conn:
         rows = conn.execute("SELECT * FROM Assets ORDER BY asset_id DESC").fetchall()
     return [dict(row) for row in rows]
+
+
+def search_assets(name: str = "", category: str = "All", status: str = "All"):
+    """Return filtered assets based on name substring, category, and status."""
+    query  = "SELECT * FROM Assets WHERE asset_name LIKE ?"
+    params = [f"%{name}%"]
+
+    if category != "All":
+        query += " AND category = ?"
+        params.append(category)
+
+    if status != "All":
+        query += " AND status = ?"
+        params.append(status)
+
+    query += " ORDER BY asset_id DESC"
+
+    with _get_connection() as conn:
+        rows = conn.execute(query, params).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_asset_by_id(asset_id: int):
+    """Return a single asset record as a dict, or None if not found."""
+    with _get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM Assets WHERE asset_id = ?", (asset_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def update_asset(asset_id, asset_name, category, purchase_date, purchase_cost, location, status):
+    """Update all fields of an existing asset by asset_id."""
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE Assets
+               SET asset_name    = ?,
+                   category      = ?,
+                   purchase_date = ?,
+                   purchase_cost = ?,
+                   location      = ?,
+                   status        = ?
+             WHERE asset_id = ?
+            """,
+            (asset_name, category, purchase_date, purchase_cost, location, status, asset_id),
+        )
+
+
+def delete_asset(asset_id: int):
+    """Permanently delete an asset record by asset_id."""
+    with _get_connection() as conn:
+        conn.execute("DELETE FROM Assets WHERE asset_id = ?", (asset_id,))
